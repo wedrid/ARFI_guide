@@ -21,6 +21,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.gms.maps.model.LatLng
 import com.google.ar.core.Anchor
+import com.google.ar.core.Earth
 import com.google.ar.core.TrackingState
 import com.google.ar.core.examples.java.common.helpers.DisplayRotationHelper
 import com.google.ar.core.examples.java.common.helpers.TrackingStateHelper
@@ -175,7 +176,21 @@ class HelloGeoRenderer(val activity: HelloGeoActivity) :
     render.clear(virtualSceneFramebuffer, 0f, 0f, 0f, 0f)
     //</editor-fold>
 
+    //NEU
     // TODO: Obtain Geospatial information and display it on the map.
+    var earth = session.earth
+    if(earth?.trackingState == TrackingState.TRACKING){
+      var cameraGeospatialPose = earth.cameraGeospatialPose
+      activity.view.mapView?.updateMapPosition(
+        latitude = cameraGeospatialPose.latitude,
+        longitude = cameraGeospatialPose.longitude,
+        heading = cameraGeospatialPose.heading
+      )
+    }
+
+    if (earth != null) {
+      activity.view.updateStatusText(earth, earth.cameraGeospatialPose)
+    }
 
     // Draw the placed anchor, if it exists.
     earthAnchor?.let {
@@ -189,7 +204,31 @@ class HelloGeoRenderer(val activity: HelloGeoActivity) :
   var earthAnchor: Anchor? = null
 
   fun onMapClick(latLng: LatLng) {
+    //NEU, cosa fare quando si fa click sulla parte dell'app dedicata alla mappa
     // TODO: place an anchor at the given position.
+    val earth = session?.earth ?: return
+    if(earth.trackingState != TrackingState.TRACKING){
+      return
+    }
+
+    earthAnchor?.detach() //se ancora già esiste, si fa il detach
+    earthAnchor = earth.createAnchor(
+      //latLng -> vedi args
+      latLng.latitude,
+      latLng.longitude,
+      earth.cameraGeospatialPose.altitude - 1.3,
+      //sotto: quaternione che specifica la rotazione
+      0f,
+      0f,
+      0f,
+      1f
+    )
+
+    activity.view.mapView?.earthMarker?.apply {
+      position = latLng
+      isVisible = true
+    }
+
   }
 
   private fun SampleRender.renderCompassAtAnchor(anchor: Anchor) {
